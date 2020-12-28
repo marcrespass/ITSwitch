@@ -14,15 +14,15 @@
 #pragma mark - Static Constants
 // ----------------------------------------------------
 
-static NSTimeInterval const kAnimationDuration = 0.4f;
+static NSTimeInterval const kAnimationDuration = 0.2f;
 
 static CGFloat const kBorderLineWidth = 1.f;
 
 static CGFloat const kGoldenRatio = 1.61803398875f;
-static CGFloat const kDecreasedGoldenRatio = 1.38;
+//static CGFloat const kDecreasedGoldenRatio = 1.38;
 
-static CGFloat const kEnabledOpacity = 1.f;
-static CGFloat const kDisabledOpacity = 0.5f;
+static float const kEnabledOpacity = 1.f;
+static float const kDisabledOpacity = 0.5f;
 
 // ----------------------------------------------------
 #pragma mark - Preprocessor
@@ -44,6 +44,8 @@ static CGFloat const kDisabledOpacity = 0.5f;
     __weak id _target;
     SEL _action;
 }
+
+@property (nonatomic, strong) NSColor *highlightedTintColor;
 
 @property (nonatomic, getter = isActive) BOOL active;
 @property (nonatomic, getter = hasDragged) BOOL dragged;
@@ -160,18 +162,18 @@ static CGFloat const kDisabledOpacity = 0.5f;
 }
 
 - (void)drawFocusRingMask {
-	CGFloat cornerRadius = NSHeight([self bounds])/2.0;
-	NSBezierPath *path = [NSBezierPath bezierPathWithRoundedRect:[self bounds] xRadius:cornerRadius yRadius:cornerRadius];
-	[[NSColor blackColor] set];
-	[path fill];
+    CGFloat cornerRadius = NSHeight([self bounds])/2.0;
+    NSBezierPath *path = [NSBezierPath bezierPathWithRoundedRect:[self bounds] xRadius:cornerRadius yRadius:cornerRadius];
+    [[NSColor blackColor] set];
+    [path fill];
 }
 
 - (BOOL)canBecomeKeyView {
-	return [NSApp isFullKeyboardAccessEnabled];
+    return [NSApp isFullKeyboardAccessEnabled];
 }
 
 - (NSRect)focusRingMaskBounds {
-	return [self bounds];
+    return [self bounds];
 }
 
 
@@ -191,10 +193,10 @@ static CGFloat const kDisabledOpacity = 0.5f;
         // ------------------------------- Animate Colors
         if (([self hasDragged] && [self isDraggingTowardsOn]) || (![self hasDragged] && [self checked])) {
             _backgroundLayer.borderColor = [self.tintColor CGColor];
-            _backgroundLayer.backgroundColor = [self.tintColor CGColor];
+            _backgroundLayer.backgroundColor = self.active ? self.highlightedTintColor.CGColor : self.tintColor.CGColor;
         } else {
             _backgroundLayer.borderColor = [self.disabledBorderColor CGColor];
-            _backgroundLayer.backgroundColor = [kDisabledBackgroundColor CGColor];
+            _backgroundLayer.backgroundColor = self.active ? [NSColor colorWithWhite:1.0f alpha:0.5f].CGColor : kDisabledBackgroundColor.CGColor;
         }
         
         // ------------------------------- Animate Enabled-Disabled state
@@ -233,8 +235,7 @@ static CGFloat const kDisabledOpacity = 0.5f;
 
 - (CGRect)rectForKnob {
     CGFloat height = [self knobHeightForSize:_backgroundLayer.bounds.size];
-    CGFloat width = ![self isActive] ? (NSWidth(_backgroundLayer.bounds) - 2.f * kBorderLineWidth) * 1.f / kGoldenRatio :
-    (NSWidth(_backgroundLayer.bounds) - 2.f * kBorderLineWidth) * 1.f / kDecreasedGoldenRatio;
+    CGFloat width = (NSWidth(_backgroundLayer.bounds) - 2.f * kBorderLineWidth) * 1.f / kGoldenRatio;;
     CGFloat x = ((![self hasDragged] && ![self checked]) || (self.hasDragged && ![self isDraggingTowardsOn])) ?
     kBorderLineWidth :
     NSWidth(_backgroundLayer.bounds) - width - kBorderLineWidth;
@@ -254,7 +255,7 @@ static CGFloat const kDisabledOpacity = 0.5f;
 // ----------------------------------------------------
 
 - (BOOL)acceptsFirstResponder {
-	return [NSApp isFullKeyboardAccessEnabled];
+    return [NSApp isFullKeyboardAccessEnabled];
 }
 
 - (void)mouseDown:(NSEvent *)theEvent {
@@ -285,8 +286,10 @@ static CGFloat const kDisabledOpacity = 0.5f;
     BOOL invokeTargetAction = (checked != [self checked]);
     
     self.checked = checked;
-    if (invokeTargetAction) [self _invokeTargetAction];
-    
+    if (invokeTargetAction) {
+        [self _invokeTargetAction];
+    }
+
     // Reset
     self.dragged = NO;
     self.draggingTowardsOn = NO;
@@ -295,32 +298,32 @@ static CGFloat const kDisabledOpacity = 0.5f;
 }
 
 - (void)moveLeft:(id)sender {
-	if ([self checked]) {
-		self.checked = NO;
-		[self _invokeTargetAction];
-	}
+    if ([self checked]) {
+        self.checked = NO;
+        [self _invokeTargetAction];
+    }
 }
 
 - (void)moveRight:(id)sender {
-	if ([self checked] == NO) {
-		self.checked = YES;
-		[self _invokeTargetAction];
-	}
+    if ([self checked] == NO) {
+        self.checked = YES;
+        [self _invokeTargetAction];
+    }
 }
 
 - (BOOL)performKeyEquivalent:(NSEvent *)theEvent {
-	BOOL handledKeyEquivalent = NO;
-	if ([[self window] firstResponder] == self) {
-		NSInteger ch = [theEvent keyCode];
-		
-		if (ch == 49) //Space
-		{
-			self.checked = ![self checked];
-			[self _invokeTargetAction];
-			handledKeyEquivalent = YES;
-		}
-	}
-	return handledKeyEquivalent;
+    BOOL handledKeyEquivalent = NO;
+    if ([[self window] firstResponder] == self) {
+        NSInteger ch = [theEvent keyCode];
+
+        if (ch == 49) //Space
+        {
+            self.checked = ![self checked];
+            [self _invokeTargetAction];
+            handledKeyEquivalent = YES;
+        }
+    }
+    return handledKeyEquivalent;
 }
 
 
@@ -346,7 +349,7 @@ static CGFloat const kDisabledOpacity = 0.5f;
 
 - (void)setChecked:(BOOL)checked {
     if (_checked != checked) {
-		_checked = checked;
+        _checked = checked;
         [self propagateValue:@(checked) forBinding:@"checked"];
     }
     
@@ -361,6 +364,13 @@ static CGFloat const kDisabledOpacity = 0.5f;
 
 - (void)setTintColor:(NSColor *)tintColor {
     _tintColor = tintColor;
+
+    // MER 2020-12-28 must convert color to RGB in order to get HSB components
+    NSColor *rgbColor = [tintColor colorUsingColorSpaceName:NSDeviceRGBColorSpace];
+    self.highlightedTintColor = [NSColor colorWithHue:rgbColor.hueComponent
+                                           saturation:rgbColor.saturationComponent
+                                           brightness:(rgbColor.brightnessComponent + 0.2)
+                                                alpha:rgbColor.alphaComponent];
     
     [self reloadLayer];
 }
